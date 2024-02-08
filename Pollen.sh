@@ -86,10 +86,13 @@ echo '{
   "NetworkThrottlingEnabled": "false",
   "NetworkPredictionOptions": "0",
   "AllowedDomainsForApps": "",
-  "DeviceUserAllowlist": ""
+  "DeviceUserAllowlist": "",
+  "BlockThirdPartyCookies": "",
+  "ChromeOsReleaseChannel": "",
+  "FastPairEnabled": "true",
 }' > /tmp/overlay/etc/opt/chrome/policies/managed/policy.json
 cp -a -L /etc/* /tmp/overlay/etc 2> /dev/null
 mount --bind /tmp/overlay/etc /etc
 
 echo ""
-echo "Pollen has been successfully applied!"
+echo "Pollen - Beta 0.1 has been successfully applied!"
