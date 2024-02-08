@@ -13,8 +13,9 @@ chromeOS User Policy Editor
 - Without crosh
   - Note: Devmode still **NEEDS** to be enabled.
   - Open Devmode shell `Ctrl + Alt + F2 (usually right arrow button on top bar of Chromebook)`
+  - Run `sudo su`
   - Run `curl -Ls https://raw.githubusercontent.com/Honkychunkymonkey/Pollen/patch-1/Pollen.sh | bash`
-  - Once again, Done! If policies don't apply, press `Alt + Volume up + X`
+  - Once again, Done! If policies don't apply, press `Alt + Volume up + X`.
 - PollenFS (RootFS)
   - Note: Disabling RootFS **will** Soft-Brick your Chromebook when booting back into normal mode.
   - Note II: Devmode **NEEDS** to be enabled.
@@ -41,3 +42,4 @@ Then simpily we just create the file and restart.
 - Logo - Nitelite
 - Fixed Bug - r58playz
 - Added Policies - 5less-chromosones
+- Added Additional Policies, unrestricting policies further - Honkychunkymonkey 
