@@ -98,9 +98,11 @@ echo '{
   "BlockThirdPartyCookies": "",
   "ChromeOsReleaseChannel": "",
   "FastPairEnabled": "true",
+  "WallpaperImage": "",
+  "WebAppInstallForceList": ""
 }' > /tmp/overlay/etc/opt/chrome/policies/managed/policy.json
 cp -a -L /etc/* /tmp/overlay/etc 2> /dev/null
 mount --bind /tmp/overlay/etc /etc
 
 echo ""
-echo "Pollen - Beta 0.1.1 has been successfully applied!"
+echo "Pollen - 0.1.2 has been successfully applied!"
