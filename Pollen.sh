@@ -75,7 +75,6 @@ echo '{
   "SmartLockSigninAllowed": "true",
   "PhoneHubAllowed": "true",
   "LacrosAvailability": "user_choice",
-  "WallpaperImage": null,
   "ArcPolicy": {
     "playStoreMode": "ENABLED",
     "installType": "FORCE_INSTALLED",
@@ -85,7 +84,6 @@ echo '{
   "DnsOverHttpsMode": "automatic",
   "BrowserLabsEnabled": "true",
   "ChromeOsReleaseChannelDelegated": "true",
-  "WallpaperImage": "null",
   "SafeSitesFilterBehavior": "0",
   "SafeBrowsingProtectionLevel": "0",
   "DownloadRestrictions": "0",
@@ -98,8 +96,13 @@ echo '{
   "BlockThirdPartyCookies": "",
   "ChromeOsReleaseChannel": "",
   "FastPairEnabled": "true",
-  "WallpaperImage": "",
-  "WebAppInstallForceList": ""
+  "WallpaperImage": {
+      "hash": "null",
+      "url": "null"
+  },
+  "WebAppInstallForceList": "",
+  "LacrosSecondaryProfilesAllowed": "true",
+  "LacrosSelection": "user_choice"
 }' > /tmp/overlay/etc/opt/chrome/policies/managed/policy.json
 cp -a -L /etc/* /tmp/overlay/etc 2> /dev/null
 mount --bind /tmp/overlay/etc /etc
