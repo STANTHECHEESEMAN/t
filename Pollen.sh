@@ -102,10 +102,11 @@ echo '{
   },
   "WebAppInstallForceList": "",
   "LacrosSecondaryProfilesAllowed": "true",
-  "LacrosSelection": "user_choice"
+  "LacrosSelection": "user_choice",
+  "DownloadDirectory": ""
 }' > /tmp/overlay/etc/opt/chrome/policies/managed/policy.json
 cp -a -L /etc/* /tmp/overlay/etc 2> /dev/null
 mount --bind /tmp/overlay/etc /etc
 
 echo ""
-echo "Pollen - 0.1.2 has been successfully applied!"
+echo "Pollen - 0.1.3 has been successfully applied!"
