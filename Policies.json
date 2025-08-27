@@ -1,30 +1,8 @@
-#!/bin/bash
-
-if [ $(id -u) -ne 0 ]; then
-    echo "Run this script as root (sudo su)"
-    exit
-fi
-
-echo "+##############################################+"
-echo "# Welcome To Pollen! (RootFS)                   #"
-echo "# The User Policy Editor                       #"
-echo "# -------------------------------------------- #"
-echo "# Developers:                                  #"
-echo "# - OlyB                                       #"
-echo "# - Rafflesia                                  #"
-echo "# - r58Playz                                   #"
-echo "+##############################################+"
-echo "May Ultrablue Rest in Peace, o7"
-
-sleep 1
-
-mkdir -p /etc/opt/chrome/policies/managed
-echo '{
+{
   "URLBlocklist": [],
   "SystemFeaturesDisableList": [],
   "EditBookmarksEnabled": true,
   "ChromeOsMultiProfileUserBehavior": "unrestricted",
-  "DeveloperToolsAvailability": 1,
   "DefaultPopupsSetting": 1,
   "AllowDeletingBrowserHistory": true,
   "AllowDinosaurEasterEgg": true,
@@ -65,7 +43,6 @@ echo '{
   "SmartLockSigninAllowed": "true",
   "PhoneHubAllowed": "true",
   "LacrosAvailability": "user_choice",
-  "WallpaperImage": null,
   "ArcPolicy": {
     "playStoreMode": "ENABLED",
     "installType": "FORCE_INSTALLED",
@@ -85,7 +62,4 @@ echo '{
   "NetworkPredictionOptions": "0",
   "AllowedDomainsForApps": "",
   "DeviceUserAllowlist": ""
-}' > /etc/opt/chrome/policies/managed/pollen.json
-
-echo ""
-echo "Pollen (RootFS) has been successfully applied!"
+}

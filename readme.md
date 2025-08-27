@@ -15,18 +15,21 @@ Pollen **cannot** modify policies such as developer mode. If you want to modify 
 
 ## How do I use it?
 > [!IMPORTANT]
-You must have developer mode enabled for Pollen to work!
+>You must have developer mode enabled for Pollen to work!
 
 If you notice that policy changes are not taking effect, visit `chrome://policy` and click "Reload Policies." If `chrome://policy` is blocked, enter VT-2 and run `restart ui`.
 
-### Change Temporarily
-To temporarily modify the user policy, enter the VT2 console by pressing `CTRL + ALT + F2`. You can login as `root` or `chronos` and then run the command: `curl -Ls https://mercuryworkshop.github.io/Pollen/Pollen.sh | bash` to execute Pollen.
+To use Pollen, enter the VT2 console by pressing `CTRL + ALT + F2`. You can login as `root` or `chronos` and then run the command: `curl -Ls https://mercuryworkshop.github.io/Pollen/Pollen.sh | bash` to execute the interactive Pollen script.
 
-### Change Permently
+The script will provide options to:
+1.  Apply policies temporarily (reverts on reboot).
+2.  Apply policies permanently (requires RootFS disabled).
+3.  Disable RootFS verification (DANGEROUS).
+4.  Fetch the latest policies from the repository.
+5.  Exit.
+
 > [!WARNING]
-> You can disable RootFS on your chromebook to make user policy changes persistent. However this will cause your chromebook to soft-brick if you re-enter verified mode. 
-
-To disable RootFS, login as `root` on the VT2 shell and run the command `curl -Ls https://mercuryworkshop.github.io/Pollen/RootFS.sh | bash`. You can now execute pollen by rebooting the system, opening VT2, and running  `curl -Ls https://mercuryworkshop.github.io/Pollen/PollenFS.sh | bash`.
+> Disabling RootFS on your chromebook can cause it to soft-brick if you re-enter verified mode. It is not recommended unless you know what you are doing.
 
 ## Credits
 - Discovery - Rafflesia
