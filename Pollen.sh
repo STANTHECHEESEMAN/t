@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
+# Pollen: User Policy Editor
+# - Interactive TTY menu when available
+# - Non-interactive CLI options for use via curl|bash or automation
+# - Safer checks, confirmations, and clear messages
 
 set -Eeuo pipefail
 
-# ----------------------------- Config -----------------------------
+# ----------------------------- Defaults -----------------------------
 POLICY_FILE="Policies.json"
 REPO_URL="https://raw.githubusercontent.com/blankuserrr/Pollen/main/Policies.json"
 OVERLAY_BASE="/tmp/pollen-overlay"
@@ -11,29 +15,111 @@ POLICY_DEST_DIR="/etc/opt/chrome/policies/managed"
 VBOOT_TOOL="/usr/share/vboot/bin/make_dev_ssd.sh"
 DEVICE="/dev/mmcblk0"
 
-# ------------------------------ UI --------------------------------
-if [[ -t 1 && "${TERM:-}" != "dumb" ]]; then
-  BOLD=$'\e[1m'; DIM=$'\e[2m'; RED=$'\e[31m'; YELLOW=$'\e[33m'; GREEN=$'\e[32m'; BLUE=$'\e[34m'; RESET=$'\e[0m'
-else
-  BOLD=""; DIM=""; RED=""; YELLOW=""; GREEN=""; BLUE=""; RESET=""
-fi
+ASSUME_YES=false
+UPDATE=false
+ACTION=""
+FORCE_NO_COLOR=false
 
+# ------------------------------ UI ---------------------------------
+BOLD=""; DIM=""; RED=""; YELLOW=""; GREEN=""; BLUE=""; RESET=""
+setup_colors() {
+  if [[ -t 1 && "${TERM:-}" != "dumb" && $FORCE_NO_COLOR == false ]]; then
+    BOLD=$'\e[1m'; DIM=$'\e[2m'; RED=$'\e[31m'; YELLOW=$'\e[33m'; GREEN=$'\e[32m'; BLUE=$'\e[34m'; RESET=$'\e[0m'
+  fi
+}
 info()    { printf "%s[i]%s %s\n" "$BLUE" "$RESET" "$*"; }
 warn()    { printf "%s[!]%s %s\n" "$YELLOW" "$RESET" "$*"; }
 error()   { printf "%s[✗]%s %s\n" "$RED" "$RESET" "$*" >&2; }
 success() { printf "%s[✓]%s %s\n" "$GREEN" "$RESET" "$*"; }
 die()     { error "$@"; exit 1; }
 
+show_banner() {
+  echo "+##############################################+"
+  echo "| Welcome to Pollen!                           |"
+  echo "| The User Policy Editor                       |"
+  echo "| -------------------------------------------- |"
+  echo "| Developers:                                  |"
+  echo "| - OlyB                                       |"
+  echo "| - Rafflesia                                  |"
+  echo "| - r58Playz                                   |"
+  echo "+##############################################+"
+  echo "May Ultrablue rest in peace, o7."
+  echo ""
+}
+
+usage() {
+  cat <<EOF
+Usage:
+  $0 [options]
+
+Actions (choose one):
+  -t, --temporary            Apply policies temporarily (reverts on reboot)
+  -p, --permanent            Apply policies permanently (requires RootFS disabled)
+  -d, --disable-rootfs       Disable RootFS verification (DANGEROUS)
+  -f, --fetch                Fetch latest Policies.json from the repository
+  -h, --help                 Show this help and exit
+
+Modifiers:
+  -u, --update               Before applying, update Policies.json from --repo-url
+  -y, --yes                  Assume "yes" to prompts (needed for non-interactive use)
+      --policy-file FILE     Path to Policies.json (default: $POLICY_FILE)
+      --repo-url URL         Repo URL for Policies.json (default: $REPO_URL)
+      --device DEV           Device for vboot tool (default: $DEVICE)
+      --vboot-tool PATH      Path to make_dev_ssd.sh (default: $VBOOT_TOOL)
+      --overlay-dir DIR      Temporary overlay base (default: $OVERLAY_BASE)
+      --no-color             Disable colored output
+
+Examples:
+  Interactive menu (run in a terminal):
+    sudo bash Pollen.sh
+
+  Non-interactive usage (no TTY):
+    # Temporary apply:
+    curl -Ls https://raw.githubusercontent.com/blankuserrr/Pollen/refs/heads/main/Pollen.sh | \
+      sudo bash -s -- --temporary --update
+
+    # Permanent apply (requires RootFS disabled) and auto-confirm:
+    curl -Ls https://raw.githubusercontent.com/blankuserrr/Pollen/refs/heads/main/Pollen.sh | \
+      sudo bash -s -- --permanent --update --yes
+
+    # Disable RootFS verification (DANGEROUS), auto-confirm:
+    curl -Ls https://raw.githubusercontent.com/blankuserrr/Pollen/refs/heads/main/Pollen.sh | \
+      sudo bash -s -- --disable-rootfs --yes
+
+Note:
+  If no interactive terminal is available, pass an action and (when required) --yes.
+  Otherwise the script will refuse to proceed for safety.
+EOF
+}
+
+# --------------------------- Arg Parsing ----------------------------
+parse_args() {
+  while (($#)); do
+    case "$1" in
+      -t|--temporary)      ACTION="temp" ;;
+      -p|--permanent)      ACTION="perm" ;;
+      -d|--disable-rootfs) ACTION="disable" ;;
+      -f|--fetch)          ACTION="fetch" ;;
+      -u|--update)         UPDATE=true ;;
+      -y|--yes)            ASSUME_YES=true ;;
+      --policy-file)       POLICY_FILE="${2:?}"; shift ;;
+      --repo-url)          REPO_URL="${2:?}"; shift ;;
+      --device)            DEVICE="${2:?}"; shift ;;
+      --vboot-tool)        VBOOT_TOOL="${2:?}"; shift ;;
+      --overlay-dir)       OVERLAY_BASE="${2:?}"; OVERLAY_ETC="$OVERLAY_BASE/etc"; shift ;;
+      --no-color)          FORCE_NO_COLOR=true ;;
+      -h|--help)           ACTION="help" ;;
+      --) shift; break ;;
+      *) error "Unknown option: $1"; echo; usage; exit 2 ;;
+    esac
+    shift
+  done
+}
+
 # --------------------------- Pre-flight ---------------------------
 require_root() {
   if [[ "$(id -u)" -ne 0 ]]; then
-    die "Please run this script as root (e.g., 'sudo -i' then run it, or 'sudo bash ./script.sh')."
-  fi
-}
-
-require_tty() {
-  if [[ ! -t 0 || ! -t 1 ]]; then
-    die "This script requires an interactive terminal (stdin/stdout must be TTY)."
+    die "Please run as root (e.g., 'sudo -i' then run it, or 'sudo bash ./Pollen.sh')."
   fi
 }
 
@@ -48,7 +134,16 @@ read_tty() {
 
 ask_yes_no() {
   # Usage: ask_yes_no "Question (y/N): " default(N|Y)
-  local prompt="$1"; local default="${2:-N}"; local ans
+  local prompt="$1"; local default="${2:-N}"
+  if $ASSUME_YES; then
+    info "Auto-confirming due to --yes: ${prompt%:*}"
+    return 0
+  fi
+  if [[ ! -t 0 || ! -t 1 ]]; then
+    error "No TTY available to prompt. Re-run with --yes to confirm non-interactively."
+    return 1
+  fi
+  local ans
   while true; do
     read_tty "$prompt" ans
     ans="${ans:-$default}"
@@ -73,6 +168,18 @@ prompt_choice() {
 }
 
 # --------------------------- Utilities ----------------------------
+fetch_latest_policies() {
+  info "Fetching latest policies from $REPO_URL ..."
+  if command -v curl >/dev/null 2>&1; then
+    curl -fSL "$REPO_URL" -o "$POLICY_FILE" && success "Policies.json has been updated." || return 1
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO "$POLICY_FILE" "$REPO_URL" && success "Policies.json has been updated." || return 1
+  else
+    error "Neither curl nor wget is available."
+    return 1
+  fi
+}
+
 ensure_policies_json() {
   if [[ ! -f "$POLICY_FILE" ]]; then
     warn "'$POLICY_FILE' not found in: $(pwd)"
@@ -84,34 +191,20 @@ ensure_policies_json() {
   fi
 }
 
-fetch_latest_policies() {
-  info "Fetching latest policies from $REPO_URL ..."
-  if command -v curl >/dev/null 2>&1; then
-    curl -fSL "$REPO_URL" -o "$POLICY_FILE" && success "Policies.json has been updated successfully." || return 1
-  elif command -v wget >/dev/null 2>&1; then
-    wget -qO "$POLICY_FILE" "$REPO_URL" && success "Policies.json has been updated successfully." || return 1
-  else
-    error "Neither curl nor wget is available."
-    return 1
-  fi
-}
-
 # --------------------------- Operations ---------------------------
 apply_policies_temporarily() {
   info "Applying policies temporarily (reverts on reboot)..."
+  if $UPDATE; then fetch_latest_policies || die "Failed to update policies."; fi
   ensure_policies_json
 
   mkdir -p "$OVERLAY_ETC"
-  # Copy the entire /etc, preserving attributes and following symlinks; include dotfiles via '/.'.
   info "Preparing overlay at $OVERLAY_ETC ..."
   cp -a -L /etc/. "$OVERLAY_ETC"
 
-  # Place the policy after copying the base tree to avoid accidental overwrites.
   local overlay_policy_dir="$OVERLAY_ETC/opt/chrome/policies/managed"
   mkdir -p "$overlay_policy_dir"
   cp -- "$POLICY_FILE" "$overlay_policy_dir/policy.json"
 
-  # Bind-mount overlay over /etc
   if mount --bind "$OVERLAY_ETC" /etc; then
     success "Pollen has been successfully applied temporarily!"
     info "Changes will be reverted on reboot."
@@ -124,6 +217,7 @@ apply_policies_permanently() {
   warn "This option requires RootFS verification to be disabled."
   warn "If it is not disabled, this will likely not work."
   if ask_yes_no "Do you want to continue? (y/N): " "N"; then
+    if $UPDATE; then fetch_latest_policies || die "Failed to update policies."; fi
     ensure_policies_json
     info "Applying policies permanently..."
     mkdir -p "$POLICY_DEST_DIR"
@@ -142,7 +236,6 @@ disable_rootfs_verification() {
 
   if ask_yes_no "Are you absolutely sure you want to continue? (y/N): " "N"; then
     info "Disabling RootFS..."
-    # Running both partitions as per original script
     if "$VBOOT_TOOL" -i "$DEVICE" --remove_rootfs_verification --partitions 2 &&
        "$VBOOT_TOOL" -i "$DEVICE" --remove_rootfs_verification --partitions 4; then
       success "RootFS verification has been disabled."
@@ -154,21 +247,7 @@ disable_rootfs_verification() {
   fi
 }
 
-# --------------------------- Main Menu ----------------------------
-show_banner() {
-  echo "+##############################################+"
-  echo "| Welcome to Pollen!                           |"
-  echo "| The User Policy Editor                       |"
-  echo "| -------------------------------------------- |"
-  echo "| Developers:                                  |"
-  echo "| - OlyB                                       |"
-  echo "| - Rafflesia                                  |"
-  echo "| - r58Playz                                   |"
-  echo "+##############################################+"
-  echo "May Ultrablue rest in peace, o7."
-  echo ""
-}
-
+# --------------------------- Menu Flow -----------------------------
 main_menu() {
   while true; do
     echo ""
@@ -194,10 +273,58 @@ main_menu() {
   done
 }
 
-# --------------------------- Entrypoint ---------------------------
-trap 'echo' INT  # Format a clean newline on Ctrl-C
+# --------------------------- Entrypoint ----------------------------
+trap 'echo' INT
+parse_args "$@"
+setup_colors
 require_root
-require_tty
-show_banner
-sleep 1
-main_menu
+
+case "$ACTION" in
+  help)
+    usage
+    exit 0
+    ;;
+  temp)
+    show_banner
+    apply_policies_temporarily
+    exit 0
+    ;;
+  perm)
+    show_banner
+    apply_policies_permanently
+    exit 0
+    ;;
+  disable)
+    show_banner
+    disable_rootfs_verification
+    exit 0
+    ;;
+  fetch)
+    show_banner
+    fetch_latest_policies || die "Failed to fetch policies. Check internet connection."
+    exit 0
+    ;;
+  "")
+    # No action provided: choose interactive menu if TTY; otherwise instruct user to pass options.
+    if [[ -t 0 && -t 1 ]]; then
+      show_banner
+      sleep 1
+      main_menu
+      exit 0
+    else
+      error "No interactive terminal detected."
+      echo
+      echo "Tip: You can pass options to use Pollen non-interactively. For example:"
+      echo "  curl -Ls https://raw.githubusercontent.com/blankuserrr/Pollen/refs/heads/main/Pollen.sh | \\"
+      echo "    sudo bash -s -- --temporary --update"
+      echo
+      usage
+      exit 2
+    fi
+    ;;
+  *)
+    error "Invalid action."
+    usage
+    exit 2
+    ;;
+esac
