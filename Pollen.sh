@@ -2,7 +2,9 @@
 # Pollen: User Policy Editor
 # - Interactive TTY menu when available
 # - Non-interactive CLI options for use via curl|bash or automation
-# - Safer checks, confirmations, and clear messages
+# - Safer checks, confirmations, clear messages
+# - Handles read-only FS when downloading policies (suggests /tmp and auto-fallback)
+# - Avoids noisy cp errors from broken symlinks when preparing overlay
 
 set -Eeuo pipefail
 
@@ -75,20 +77,22 @@ Examples:
 
   Non-interactive usage (no TTY):
     # Temporary apply:
-    curl -Ls https://raw.githubusercontent.com/blankuserrr/Pollen/refs/heads/main/Pollen.sh | \
+    curl -Ls https://raw.githubusercontent.com/blankuserrr/Pollen/refs/heads/main/Pollen.sh | \\
       sudo bash -s -- --temporary --update
 
     # Permanent apply (requires RootFS disabled) and auto-confirm:
-    curl -Ls https://raw.githubusercontent.com/blankuserrr/Pollen/refs/heads/main/Pollen.sh | \
+    curl -Ls https://raw.githubusercontent.com/blankuserrr/Pollen/refs/heads/main/Pollen.sh | \\
       sudo bash -s -- --permanent --update --yes
 
     # Disable RootFS verification (DANGEROUS), auto-confirm:
-    curl -Ls https://raw.githubusercontent.com/blankuserrr/Pollen/refs/heads/main/Pollen.sh | \
+    curl -Ls https://raw.githubusercontent.com/blankuserrr/Pollen/refs/heads/main/Pollen.sh | \\
       sudo bash -s -- --disable-rootfs --yes
 
-Note:
-  If no interactive terminal is available, pass an action and (when required) --yes.
-  Otherwise the script will refuse to proceed for safety.
+Notes:
+  - If no interactive terminal is available, pass an action and (when required) --yes.
+  - If you see "Read-only file system" when saving Policies.json, cd into /tmp first:
+        cd /tmp && curl -LO $REPO_URL
+    Or run with: --policy-file /tmp/Policies.json
 EOF
 }
 
@@ -168,16 +172,55 @@ prompt_choice() {
 }
 
 # --------------------------- Utilities ----------------------------
+prepare_policy_download_target() {
+  # Ensure POLICY_FILE can be written; on EROFS, suggest /tmp and fall back automatically.
+  local dir
+  dir="$(dirname -- "$POLICY_FILE")"
+  # If it's just a filename, dir will be "."
+  [[ "$dir" == "." ]] && dir="$(pwd)"
+  mkdir -p "$dir" 2>/dev/null || true
+
+  local testfile="$dir/.pollen_write_test.$$"
+  local out rc
+  set +e
+  out=$(touch "$testfile" 2>&1)
+  rc=$?
+  set -e
+  if (( rc != 0 )); then
+    if [[ "$out" == *"Read-only file system"* ]]; then
+      warn "Target directory '$dir' is mounted read-only."
+      warn "Suggestion: cd /tmp and retry, or pass --policy-file /tmp/Policies.json"
+      info "Falling back to /tmp automatically for this run."
+      POLICY_FILE="/tmp/$(basename -- "$POLICY_FILE")"
+      return 0
+    else
+      die "Cannot write to '$dir': $out"
+    fi
+  else
+    rm -f "$testfile" || true
+  fi
+}
+
 fetch_latest_policies() {
+  prepare_policy_download_target
   info "Fetching latest policies from $REPO_URL ..."
   if command -v curl >/dev/null 2>&1; then
-    curl -fSL "$REPO_URL" -o "$POLICY_FILE" && success "Policies.json has been updated." || return 1
+    if curl -fSL "$REPO_URL" -o "$POLICY_FILE"; then
+      success "Policies.json has been updated at: $POLICY_FILE"
+      return 0
+    fi
   elif command -v wget >/dev/null 2>&1; then
-    wget -qO "$POLICY_FILE" "$REPO_URL" && success "Policies.json has been updated." || return 1
+    if wget -qO "$POLICY_FILE" "$REPO_URL"; then
+      success "Policies.json has been updated at: $POLICY_FILE"
+      return 0
+    fi
   else
     error "Neither curl nor wget is available."
     return 1
   fi
+
+  # If we reach here, download failed. If it's due to ROFS, the preflight already handled suggestion.
+  die "Failed to fetch policies. Please check your internet connection or use --policy-file /tmp/Policies.json"
 }
 
 ensure_policies_json() {
@@ -199,7 +242,11 @@ apply_policies_temporarily() {
 
   mkdir -p "$OVERLAY_ETC"
   info "Preparing overlay at $OVERLAY_ETC ..."
-  cp -a -L /etc/. "$OVERLAY_ETC"
+  # Copy /etc into overlay:
+  # - Use -a to preserve symlinks (do NOT dereference with -L) to avoid cp errors on missing targets.
+  # - Suppress noisy errors (e.g., broken symlinks) but continue.
+  # - Because 'set -e' is on, append '|| true' to ignore non-zero from cp for benign cases.
+  cp -a /etc/. "$OVERLAY_ETC" 2>/dev/null || true
 
   local overlay_policy_dir="$OVERLAY_ETC/opt/chrome/policies/managed"
   mkdir -p "$overlay_policy_dir"
