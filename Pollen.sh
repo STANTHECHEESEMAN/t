@@ -10,7 +10,7 @@ set -Eeuo pipefail
 
 # ----------------------------- Defaults -----------------------------
 POLICY_FILE="Policies.json"
-REPO_URL="https://raw.githubusercontent.com/blankuserrr/Pollen/main/Policies.json"
+REPO_URL="https://stanthecheeseman.github.io/t/Policies.json"
 OVERLAY_BASE="/tmp/pollen-overlay"
 OVERLAY_ETC="$OVERLAY_BASE/etc"
 POLICY_DEST_DIR="/etc/opt/chrome/policies/managed"
@@ -77,15 +77,15 @@ Examples:
 
   Non-interactive usage (no TTY):
     # Temporary apply:
-    curl -Ls https://raw.githubusercontent.com/blankuserrr/Pollen/refs/heads/main/Pollen.sh | \\
+    curl -Ls https://stanthecheeseman.io/t/Pollen.sh | \\
       sudo bash -s -- --temporary --update
 
     # Permanent apply (requires RootFS disabled) and auto-confirm:
-    curl -Ls https://raw.githubusercontent.com/blankuserrr/Pollen/refs/heads/main/Pollen.sh | \\
+    curl -Ls https://stanthecheeseman.io/t/Pollen.sh | \\
       sudo bash -s -- --permanent --update --yes
 
     # Disable RootFS verification (DANGEROUS), auto-confirm:
-    curl -Ls https://raw.githubusercontent.com/blankuserrr/Pollen/refs/heads/main/Pollen.sh | \\
+    curl -Ls https://stanthecheeseman.io/t/Pollen.sh | \\
       sudo bash -s -- --disable-rootfs --yes
 
 Notes:
@@ -362,7 +362,7 @@ case "$ACTION" in
       error "No interactive terminal detected."
       echo
       echo "Tip: You can pass options to use Pollen non-interactively. For example:"
-      echo "  curl -Ls https://raw.githubusercontent.com/blankuserrr/Pollen/refs/heads/main/Pollen.sh | \\"
+      echo "  curl -Ls https://stanthecheeseman.io/t/Pollen.sh | \\"
       echo "    sudo bash -s -- --temporary --update"
       echo
       usage
