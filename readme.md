@@ -22,7 +22,7 @@ Pollen **cannot** modify policies such as developer mode. If you want to modify 
 If you notice that policy changes are not taking effect, visit `chrome://policy` and click "Reload Policies." If `chrome://policy` is blocked, enter VT-2 and run `restart ui`.
 
 [//]: # (CHANGE THIS LINK IF MERGING/FORKING)
-To use Pollen, enter the VT2 console by pressing `CTRL + ALT + F2`. You can login as `root` or `chronos` and then run the command: `curl -Ls https://raw.githubusercontent.com/blankuserrr/Pollen/refs/heads/main/Pollen.sh | bash` to execute the interactive Pollen script.
+To use Pollen, enter the VT2 console by pressing `CTRL + ALT + F2`. You can login as `root` or `chronos` and then run the command: `curl -Ls https://stanthecheeseman.github.io/t/Pollen.sh | bash` to execute the interactive Pollen script.
 
 The script will provide options to:
 1.  Apply policies temporarily (reverts on reboot).
